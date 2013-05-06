@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+
+# Copyright 2013 Mike Sampson
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import sys
+import datetime
+import argparse
+import socket
+from pysnmp.smi import builder
+from pysnmp.entity.rfc3413.oneliner import cmdgen
+
+class SnmpError(Exception): pass
+
+def parse_args():
+    parser = argparse.ArgumentParser(description =
+             'query a network switch using snmp.')
+    parser.add_argument('host', help = 'host to query.')
+
+    return parser.parse_args()
+
+def snmp_get(host, *args):
+    errorIndication, errorStatus, errorIndex, varBinds = cmdGen.getCmd(
+        cmdgen.CommunityData('public'),
+        cmdgen.UdpTransportTarget((host, 161)),
+        *args, lookupNames = True, lookupValues = True
+    )
+
+    if errorIndication:
+        raise SnmpError(errorIndication)
+
+    if errorStatus:
+        raise SnmpError('%s at %s' % (
+            errorStatus.prettyPrint(),
+            errorIndex and varBinds[int(errorIndex)-1] or '?'
+            )
+        )
+
+    return [x[1].prettyPrint() for x in varBinds]
+
+def snmp_get_next(host, *args):
+    errorIndication, errorStatus, errorIndex, varBindTable = cmdGen.nextCmd(
+        cmdgen.CommunityData('public'),
+        cmdgen.UdpTransportTarget((host, 161)),
+        *args, lookupNames = True, lookupValues = True
+    )
+
+    if errorIndication:
+        raise SnmpError(errorIndication)
+
+    if errorStatus:
+        raise SnmpError('%s at %s' % (
+            errorStatus.prettyPrint(),
+            errorIndex and varBindTable[-1][int(errorIndex)-1] or '?'
+            )
+        )
+
+    rows = []
+
+    for varBindTableRow in varBindTable:
+        row = []
+        for name, val in varBindTableRow:
+            row.append(val.prettyPrint())
+        rows.append(row)
+
+    return rows
+
+def output_columns(rows, headers = None):
+    cols = zip(*([headers] + rows))
+    col_widths = [ max(len(value) for value in col) for col in cols ]
+    col_widths[0] *= -1 #hack, should pass format options with headers
+    col_widths[1] *= -1
+    fmt = '  '.join(['%%%ds' % width for width in col_widths ])
+    if headers:
+        h = fmt % tuple(headers)
+        print('%s\n%s' % (h, '-' * len(h)))
+    for row in rows:
+          print(fmt % tuple(row))
+
+def si_num(x):
+    SI = ['', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y']
+    x = int(x)
+    p = 0
+    while x >= 1000:
+        x /= 1000
+        p += 1
+
+    return '%d%s' % (x, SI[p])
+
+def main(host):
+    try:
+        info = snmp_get(host,
+            cmdgen.MibVariable('SNMPv2-MIB', 'sysName', 0),
+            cmdgen.MibVariable('SNMPv2-MIB', 'sysDescr', 0),
+            cmdgen.MibVariable('SNMPv2-MIB', 'sysUpTime', 0))
+
+        ports = snmp_get_next(host,
+            cmdgen.MibVariable('IF-MIB', 'ifDescr'),
+            cmdgen.MibVariable('IF-MIB', 'ifOperStatus'),
+            cmdgen.MibVariable('IF-MIB', 'ifSpeed'),
+            cmdgen.MibVariable('IF-MIB', 'ifInOctets'),
+            cmdgen.MibVariable('IF-MIB', 'ifOutOctets'))
+    except Exception as e:
+        print('ERROR: ' + str(e))
+        sys.exit(1)
+
+    print('Name        : %s' % info[0])
+    print('Description : %s' % info[1])
+    print('Uptime      : %s\n' % str(datetime.timedelta(seconds = int(info[2]) / 100)))
+
+    ports = [[y.strip('\'\"') for y in x] for x in ports ]
+
+    ports = [[x[0], x[1], si_num(x[2]), si_num(x[3]), si_num(x[4])] for x in ports]
+
+    output_columns(ports, headers = ['Description', 'Status', 'Speed', 'Octets In', 'Octets Out'])
+
+args = parse_args()
+
+try:
+    socket.gethostbyname(args.host)
+except:
+    print('Unknown host:', args.host)
+    sys.exit(1)
+
+cmdGen = cmdgen.CommandGenerator()
+
+if __name__ == '__main__':
+    main(args.host)
+
