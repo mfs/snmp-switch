@@ -20,6 +20,7 @@ import datetime
 import argparse
 import socket
 from pysnmp.smi import builder
+from pysnmp.smi.error import SmiError
 from pysnmp.entity.rfc3413.oneliner import cmdgen
 
 class SnmpError(Exception): pass
@@ -99,6 +100,26 @@ def si_num(x):
 
     return '%d%s' % (x, SI[p])
 
+def get_interface_stats(host):
+    try:
+        ports = snmp_get_next(host,
+            cmdgen.MibVariable('IF-MIB', 'ifDescr'),
+            cmdgen.MibVariable('IF-MIB', 'ifOperStatus'),
+            cmdgen.MibVariable('IF-MIB', 'ifSpeed'),
+            cmdgen.MibVariable('IF-MIB', 'ifHCInOctets'),
+            cmdgen.MibVariable('IF-MIB', 'ifHCOutOctets'))
+        counter = 64
+    except SmiError:
+        ports = snmp_get_next(host,
+            cmdgen.MibVariable('IF-MIB', 'ifDescr'),
+            cmdgen.MibVariable('IF-MIB', 'ifOperStatus'),
+            cmdgen.MibVariable('IF-MIB', 'ifSpeed'),
+            cmdgen.MibVariable('IF-MIB', 'ifInOctets'),
+            cmdgen.MibVariable('IF-MIB', 'ifOutOctets'))
+        counter = 32
+
+    return (ports, counter)
+
 def main(host):
     try:
         info = snmp_get(host,
@@ -106,12 +127,7 @@ def main(host):
             cmdgen.MibVariable('SNMPv2-MIB', 'sysDescr', 0),
             cmdgen.MibVariable('SNMPv2-MIB', 'sysUpTime', 0))
 
-        ports = snmp_get_next(host,
-            cmdgen.MibVariable('IF-MIB', 'ifDescr'),
-            cmdgen.MibVariable('IF-MIB', 'ifOperStatus'),
-            cmdgen.MibVariable('IF-MIB', 'ifSpeed'),
-            cmdgen.MibVariable('IF-MIB', 'ifInOctets'),
-            cmdgen.MibVariable('IF-MIB', 'ifOutOctets'))
+        ports, counter = get_interface_stats(host)
     except Exception as e:
         print('ERROR: ' + str(e))
         sys.exit(1)
@@ -124,7 +140,7 @@ def main(host):
 
     ports = [[x[0], x[1], si_num(x[2]), si_num(x[3]), si_num(x[4])] for x in ports]
 
-    output_columns(ports, headers = ['Description', 'Status', 'Speed', 'Octets In', 'Octets Out'])
+    output_columns(ports, headers = ['Description', 'Status', 'Speed', 'Octs In (%d)' % counter, 'Octs Out (%d)' % counter])
 
 args = parse_args()
 
