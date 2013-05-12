@@ -19,6 +19,7 @@ import sys
 import datetime
 import argparse
 import socket
+from collections import defaultdict
 from pysnmp.smi import builder
 from pysnmp.smi.error import SmiError
 from pysnmp.entity.rfc3413.oneliner import cmdgen
@@ -83,6 +84,7 @@ def output_columns(rows, headers = None):
     col_widths = [ max(len(value) for value in col) for col in cols ]
     col_widths[0] *= -1 #hack, should pass format options with headers
     col_widths[1] *= -1
+    col_widths[5] *= -1
     fmt = '  '.join(['%%%ds' % width for width in col_widths ])
     if headers:
         h = fmt % tuple(headers)
@@ -120,6 +122,18 @@ def get_interface_stats(host):
 
     return (ports, counter)
 
+def get_macs(host):
+    mac_port = snmp_get_next(host,
+        cmdgen.MibVariable('BRIDGE-MIB', 'dot1dTpFdbAddress'),
+        cmdgen.MibVariable('BRIDGE-MIB', 'dot1dTpFdbPort'))
+
+    macs = defaultdict(list)
+    for m in mac_port:
+        idx = int(m[1]) - 1
+        macs[idx] += [m[0]]
+
+    return macs
+
 def main(host):
     try:
         info = snmp_get(host,
@@ -128,6 +142,9 @@ def main(host):
             cmdgen.MibVariable('SNMPv2-MIB', 'sysUpTime', 0))
 
         ports, counter = get_interface_stats(host)
+
+        macs = get_macs(host)
+
     except Exception as e:
         print('ERROR: ' + str(e))
         sys.exit(1)
@@ -138,9 +155,9 @@ def main(host):
 
     ports = [[y.strip('\'\"') for y in x] for x in ports ]
 
-    ports = [[x[0], x[1], si_num(x[2]), si_num(x[3]), si_num(x[4])] for x in ports]
+    ports = [[x[0], x[1], si_num(x[2]), si_num(x[3]), si_num(x[4]), ' '.join(macs[i])] for i,x in enumerate(ports)]
 
-    output_columns(ports, headers = ['Description', 'Status', 'Speed', 'Octs In (%d)' % counter, 'Octs Out (%d)' % counter])
+    output_columns(ports, headers = ['Description', 'Status', 'Speed', 'Octs In (%d)' % counter, 'Octs Out (%d)' % counter, 'Hosts'])
 
 args = parse_args()
 
