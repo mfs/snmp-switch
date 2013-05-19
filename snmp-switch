@@ -19,6 +19,7 @@ import sys
 import datetime
 import argparse
 import socket
+from os.path import expanduser, isfile
 from collections import defaultdict
 from pysnmp.smi import builder
 from pysnmp.smi.error import SmiError
@@ -30,6 +31,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description =
              'query a network switch using snmp.')
     parser.add_argument('host', help = 'host to query.')
+    parser.add_argument('-c', '--config', default = expanduser('~/.snmp-switch.conf'),
+        help = 'location of config file.')
 
     return parser.parse_args()
 
@@ -127,11 +130,23 @@ def get_macs(host):
         cmdgen.MibVariable('BRIDGE-MIB', 'dot1dTpFdbAddress'),
         cmdgen.MibVariable('BRIDGE-MIB', 'dot1dTpFdbPort'))
 
+    mac_table = load_mac_table()
     macs = defaultdict(list)
     for m in mac_port:
         idx = int(m[1]) - 1
-        macs[idx] += [m[0]]
+        host = m[0]
+        if host in mac_table:
+            host = mac_table[host]
+        macs[idx] += [host]
 
+    return macs
+
+def load_mac_table():
+    macs = dict()
+    if isfile(args.config):
+        for line in open(args.config).readlines():
+            key, value = line.split()
+            macs[key] = value
     return macs
 
 def main(host):
