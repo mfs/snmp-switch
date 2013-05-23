@@ -95,7 +95,7 @@ def output_columns(rows, headers = None):
     for row in rows:
           print(fmt % tuple(row))
 
-def si_num(x):
+def si_num(x, dp = 0):
     SI = ['', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y']
     x = int(x)
     p = 0
@@ -103,7 +103,8 @@ def si_num(x):
         x /= 1000
         p += 1
 
-    return '%d%s' % (x, SI[p])
+    fmt_str = '%%.%df%%s' % dp
+    return fmt_str % (x, SI[p])
 
 def get_interface_stats(host):
     try:
@@ -170,7 +171,7 @@ def main(host):
 
     ports = [[y.strip('\'\"') for y in x] for x in ports ]
 
-    ports = [[x[0], x[1], si_num(x[2]), si_num(x[3]), si_num(x[4]), ' '.join(macs[i])] for i,x in enumerate(ports)]
+    ports = [[x[0], x[1], si_num(x[2]), si_num(x[3], 2), si_num(x[4], 2), ' '.join(macs[i])] for i,x in enumerate(ports)]
 
     output_columns(ports, headers = ['Description', 'Status', 'Speed', 'Octs In (%d)' % counter, 'Octs Out (%d)' % counter, 'Hosts'])
 
