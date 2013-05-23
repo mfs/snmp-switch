@@ -82,12 +82,15 @@ def snmp_get_next(host, *args):
 
     return rows
 
-def output_columns(rows, headers = None):
+def output_columns(rows, headers):
+    "Prefix header with a '-' for left alignment."
+    col_alignments = [-1 if x.startswith('-') else 1 for x in headers]
+    headers = [h.strip('-') for h in headers]
+
     cols = zip(*([headers] + rows))
     col_widths = [ max(len(value) for value in col) for col in cols ]
-    col_widths[0] *= -1 #hack, should pass format options with headers
-    col_widths[1] *= -1
-    col_widths[5] *= -1
+    col_widths = [x[0] * x[1] for x in zip(col_widths, col_alignments)]
+
     fmt = '  '.join(['%%%ds' % width for width in col_widths ])
     if headers:
         h = fmt % tuple(headers)
@@ -173,7 +176,7 @@ def main(host):
 
     ports = [[x[0], x[1], si_num(x[2]), si_num(x[3], 2), si_num(x[4], 2), ' '.join(macs[i])] for i,x in enumerate(ports)]
 
-    output_columns(ports, headers = ['Description', 'Status', 'Speed', 'Octs In (%d)' % counter, 'Octs Out (%d)' % counter, 'Hosts'])
+    output_columns(ports, headers = ['-Description', '-Status', 'Speed', 'Octs In (%d)' % counter, 'Octs Out (%d)' % counter, '-Hosts'])
 
 args = parse_args()
 
