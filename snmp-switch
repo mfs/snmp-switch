@@ -157,6 +157,7 @@ def main(host):
     try:
         info = snmp_get(host,
             cmdgen.MibVariable('SNMPv2-MIB', 'sysName', 0),
+            cmdgen.MibVariable('SNMPv2-MIB', 'sysLocation', 0),
             cmdgen.MibVariable('SNMPv2-MIB', 'sysDescr', 0),
             cmdgen.MibVariable('SNMPv2-MIB', 'sysUpTime', 0))
 
@@ -169,8 +170,9 @@ def main(host):
         sys.exit(1)
 
     print('Name        : %s' % info[0])
-    print('Description : %s' % info[1])
-    print('Uptime      : %s\n' % str(datetime.timedelta(seconds = int(info[2]) / 100)))
+    print('Location    : %s' % info[1])
+    print('Description : %s' % info[2])
+    print('Uptime      : %s\n' % str(datetime.timedelta(seconds = int(info[3]) / 100)))
 
     ports = [[y.strip('\'\"') for y in x] for x in ports ]
 
