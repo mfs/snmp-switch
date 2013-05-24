@@ -117,28 +117,19 @@ def int_str(x):
 
 def get_interface_stats(host):
     try:
-        ports = snmp_get_next(host,
-            cmdgen.MibVariable('IF-MIB', 'ifDescr'),
-            cmdgen.MibVariable('IF-MIB', 'ifOperStatus'),
-            cmdgen.MibVariable('IF-MIB', 'ifSpeed'),
-            cmdgen.MibVariable('IF-MIB', 'ifHCInOctets'),
-            cmdgen.MibVariable('IF-MIB', 'ifHCOutOctets'))
+        oids_64 = 'ifDescr ifOperStatus ifSpeed ifHCInOctets ifHCOutOctets'.split()
+        ports = snmp_get_next(host, *[cmdgen.MibVariable('IF-MIB', x) for x in oids_64])
         counter = 64
     except SmiError:
-        ports = snmp_get_next(host,
-            cmdgen.MibVariable('IF-MIB', 'ifDescr'),
-            cmdgen.MibVariable('IF-MIB', 'ifOperStatus'),
-            cmdgen.MibVariable('IF-MIB', 'ifSpeed'),
-            cmdgen.MibVariable('IF-MIB', 'ifInOctets'),
-            cmdgen.MibVariable('IF-MIB', 'ifOutOctets'))
+        oids_32 = 'ifDescr ifOperStatus ifSpeed ifInOctets ifOutOctets'.split()
+        ports = snmp_get_next(host, *[cmdgen.MibVariable('IF-MIB', x) for x in oids_32])
         counter = 32
 
     return (ports, counter)
 
 def get_macs(host):
-    mac_port = snmp_get_next(host,
-        cmdgen.MibVariable('BRIDGE-MIB', 'dot1dTpFdbAddress'),
-        cmdgen.MibVariable('BRIDGE-MIB', 'dot1dTpFdbPort'))
+    oids = 'dot1dTpFdbAddress dot1dTpFdbPort'.split()
+    mac_port = snmp_get_next(host, *[cmdgen.MibVariable('BRIDGE-MIB', x) for x in oids])
 
     mac_table = load_mac_table()
     macs = defaultdict(list)
@@ -161,11 +152,8 @@ def load_mac_table():
 
 def main(host):
     try:
-        info = snmp_get(host,
-            cmdgen.MibVariable('SNMPv2-MIB', 'sysName', 0),
-            cmdgen.MibVariable('SNMPv2-MIB', 'sysLocation', 0),
-            cmdgen.MibVariable('SNMPv2-MIB', 'sysDescr', 0),
-            cmdgen.MibVariable('SNMPv2-MIB', 'sysUpTime', 0))
+        oids = 'sysName sysLocation sysDescr sysUpTime'.split()
+        info = snmp_get(host, *[cmdgen.MibVariable('SNMPv2-MIB', x, 0) for x in oids])
 
         ports, counter = get_interface_stats(host)
 
