@@ -92,9 +92,8 @@ def output_columns(rows, headers):
     col_widths = [x[0] * x[1] for x in zip(col_widths, col_alignments)]
 
     fmt = '  '.join(['%%%ds' % width for width in col_widths ])
-    if headers:
-        h = fmt % tuple(headers)
-        print('%s\n%s' % (h, '-' * len(h)))
+    h = fmt % tuple(headers)
+    print('%s\n%s' % (h, '-' * len(h)))
     for row in rows:
           print(fmt % tuple(row))
 
