@@ -149,6 +149,36 @@ def load_mac_table():
             macs[key] = value
     return macs
 
+def vlan_entry(vlan_ports, num_ports):
+    "convert [1 default 0xffffffc0 0xffffffc0] to 1 default n x U/T/E "
+    # this is ugly, has to be a better way.
+    # will probably break on >32 port switches.
+    tagged = bin(int(vlan_ports[2], 0))[2:].zfill(32)
+    untagged = bin(int(vlan_ports[3], 0))[2:].zfill(32)
+
+    p = []
+    for x in range(num_ports):
+        if untagged[x] == '1':
+            p.append('U')
+        elif tagged[x] == '1':
+            p.append('T')
+        else:
+            p.append('E')
+
+    return [str(vlan_ports[0]), vlan_ports[1]] + p
+
+def get_vlan_info(host):
+    oids = 'dot1qMaxSupportedVlans dot1qNumVlans'.split()
+    info = snmp_get(host, *[cmdgen.MibVariable('Q-BRIDGE-MIB', x, 0) for x in oids])
+    return info
+
+def get_vlan_ports(host):
+    num_ports = len(snmp_get_next(host, cmdgen.MibVariable('Q-BRIDGE-MIB', 'dot1qPvid')))
+
+    oids = 'dot1qVlanFdbId  dot1qVlanStaticName dot1qVlanStaticEgressPorts dot1qVlanStaticUntaggedPorts'.split()
+    ports = snmp_get_next(host, *[cmdgen.MibVariable('Q-BRIDGE-MIB', x) for x in oids])
+    return (ports, num_ports)
+
 def main(host):
     try:
         oids = 'sysName sysLocation sysDescr sysUpTime'.split()
@@ -157,6 +187,9 @@ def main(host):
         ports, counter = get_interface_stats(host)
 
         macs = get_macs(host)
+
+        vlan_info = get_vlan_info(host)
+        vlan_ports, num_ports = get_vlan_ports(host)
 
     except Exception as e:
         print('ERROR: ' + str(e))
@@ -170,6 +203,11 @@ def main(host):
     ports = [[x[0], x[1], si_num(x[2]), si_num(x[3], 2), si_num(x[4], 2), ' '.join(macs[i])] for i,x in enumerate(ports)]
 
     output_columns(ports, headers = ['-Description', '-Status', 'Speed', 'Octs In (%d)' % counter, 'Octs Out (%d)' % counter, '-Hosts'])
+
+    print('\nMax VLANs : %s    VLANs : %s\n' % tuple(vlan_info))
+
+    vlan_ports = [vlan_entry(x, num_ports) for x in vlan_ports]
+    output_columns(vlan_ports, headers = ['-ID', '-Name'] + [str(x) for x in range(1, 27)])
 
 args = parse_args()
 
