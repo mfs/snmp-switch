@@ -60,7 +60,7 @@ out and hostnames/MACs reachable on each port. It also returns vlan information.
     Port 26       down        0          0.00           0.00
     IP Interface  up         1G        33.18M         37.10M
 
-    Max VLANs : 4096    VLANs : 2
+    Max VLANs : 4096    VLANs : 2    Key : T - Tagged, U - Untagged, E - Excluded
 
     ID   Name     1  2  3  4  5  6  7  8  9  10  11  12  13  14  15  16  17  18  19  20  21  22  23  24  25  26
     -----------------------------------------------------------------------------------------------------------
