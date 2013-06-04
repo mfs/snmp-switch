@@ -116,11 +116,11 @@ def int_str(x):
 
 def get_interface_stats(host):
     try:
-        oids_64 = 'ifDescr ifOperStatus ifSpeed ifHCInOctets ifHCOutOctets'.split()
+        oids_64 = 'ifName ifOperStatus ifSpeed ifHCInOctets ifHCOutOctets'.split()
         ports = snmp_get_next(host, *[cmdgen.MibVariable('IF-MIB', x) for x in oids_64])
         counter = 64
     except SmiError:
-        oids_32 = 'ifDescr ifOperStatus ifSpeed ifInOctets ifOutOctets'.split()
+        oids_32 = 'ifName ifOperStatus ifSpeed ifInOctets ifOutOctets'.split()
         ports = snmp_get_next(host, *[cmdgen.MibVariable('IF-MIB', x) for x in oids_32])
         counter = 32
 
@@ -202,7 +202,7 @@ def main(host):
 
     ports = [[x[0], x[1], si_num(x[2]), si_num(x[3], 2), si_num(x[4], 2), ' '.join(macs[i])] for i,x in enumerate(ports)]
 
-    output_columns(ports, headers = ['-Description', '-Status', 'Speed', 'Octs In (%d)' % counter, 'Octs Out (%d)' % counter, '-Hosts'])
+    output_columns(ports, headers = ['-Name', '-Status', 'Speed', 'Octs In (%d)' % counter, 'Octs Out (%d)' % counter, '-Hosts'])
 
     print('\nMax VLANs : %s    VLANs : %s\n' % tuple(vlan_info))
 
