@@ -204,7 +204,8 @@ def main(host):
 
     output_columns(ports, headers = ['-Name', '-Status', 'Speed', 'Octs In (%d)' % counter, 'Octs Out (%d)' % counter, '-Hosts'])
 
-    print('\nMax VLANs : %s    VLANs : %s\n' % tuple(vlan_info))
+    KEY = 'Key : T - Tagged, U - Untagged, E - Excluded'
+    print('\nMax VLANs : %s    VLANs : %s    %s\n' % tuple(vlan_info + [KEY]))
 
     vlan_ports = [vlan_entry(x, num_ports) for x in vlan_ports]
     output_columns(vlan_ports, headers = ['-ID', '-Name'] + [str(x) for x in range(1, 27)])
