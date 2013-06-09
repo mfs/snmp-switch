@@ -66,16 +66,11 @@ def output_columns(rows, headers):
           print(fmt % tuple(row))
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description =
-             'query a network switch using snmp.')
-    parser.add_argument('host', help = 'host to query.')
-    parser.add_argument('-c', '--config', default = expanduser('~/.snmp-switch.conf'),
-        help = 'location of config file.')
+######## SNMP helper functions  ########
 
-    return parser.parse_args()
 
 def snmp_get(host, *args):
+    "Perform an SNMP GET for one or more OIDs. Return results as a list."
     errorIndication, errorStatus, errorIndex, varBinds = cmdGen.getCmd(
         cmdgen.CommunityData('public'),
         cmdgen.UdpTransportTarget((host, 161)),
@@ -94,7 +89,9 @@ def snmp_get(host, *args):
 
     return [x[1].prettyPrint() for x in varBinds]
 
+
 def snmp_get_next(host, *args):
+    "Perform an SNMP GETNEXT for one or more OIDs. Return results as a list of lists."
     errorIndication, errorStatus, errorIndex, varBindTable = cmdGen.nextCmd(
         cmdgen.CommunityData('public'),
         cmdgen.UdpTransportTarget((host, 161)),
@@ -186,6 +183,15 @@ def get_vlan_ports(host):
     oids = 'dot1qVlanFdbId  dot1qVlanStaticName dot1qVlanStaticEgressPorts dot1qVlanStaticUntaggedPorts'.split()
     ports = snmp_get_next(host, *[cmdgen.MibVariable('Q-BRIDGE-MIB', x) for x in oids])
     return (ports, num_ports)
+
+def parse_args():
+    parser = argparse.ArgumentParser(description =
+             'query a network switch using snmp.')
+    parser.add_argument('host', help = 'host to query.')
+    parser.add_argument('-c', '--config', default = expanduser('~/.snmp-switch.conf'),
+        help = 'location of config file.')
+
+    return parser.parse_args()
 
 def main(host):
     try:
