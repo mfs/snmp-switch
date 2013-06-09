@@ -15,6 +15,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import io
 import sys
 import datetime
 import argparse
@@ -61,9 +62,9 @@ def output_columns(rows, headers):
 
     fmt = '  '.join(['%%%ds' % width for width in col_widths ])
     h = fmt % tuple(headers)
-    print('%s\n%s' % (h, '-' * len(h)))
+    print('%s\n%s' % (h, '-' * len(h)), file = output)
     for row in rows:
-          print(fmt % tuple(row))
+          print(fmt % tuple(row), file = output)
 
 
 ######## SNMP helper functions  ########
@@ -209,22 +210,26 @@ def main(host):
         print('ERROR: ' + str(e))
         sys.exit(1)
 
-    print('Name        : %s' % info[0])
-    print('Location    : %s' % info[1])
-    print('Description : %s' % info[2])
-    print('Uptime      : %s\n' % str(datetime.timedelta(seconds = int(info[3]) / 100)))
+    print('Name        : %s' % info[0], file = output)
+    print('Location    : %s' % info[1], file = output)
+    print('Description : %s' % info[2], file = output)
+    print('Uptime      : %s\n' % str(datetime.timedelta(seconds = int(info[3]) / 100)), file = output)
 
     ports = [[x[0], x[1], si_num(x[2]), si_num(x[3], 2), si_num(x[4], 2), ' '.join(macs[i])] for i,x in enumerate(ports)]
 
     output_columns(ports, headers = ['-Name', '-Status', 'Speed', 'Octs In (%d)' % counter, 'Octs Out (%d)' % counter, '-Hosts'])
 
     KEY = 'Key : T - Tagged, U - Untagged, E - Excluded'
-    print('\nMax VLANs : %s    VLANs : %s    %s\n' % tuple(vlan_info + [KEY]))
+    print('\nMax VLANs : %s    VLANs : %s    %s\n' % tuple(vlan_info + [KEY]), file = output)
 
     vlan_ports = [vlan_entry(x, num_ports) for x in vlan_ports]
     output_columns(vlan_ports, headers = ['-ID', '-Name'] + [str(x) for x in range(1, 27)])
 
+    print(output.getvalue())
+    output.close()
+
 args = parse_args()
+output = io.StringIO()
 
 try:
     socket.gethostbyname(args.host)
