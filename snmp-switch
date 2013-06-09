@@ -62,9 +62,9 @@ def output_columns(rows, headers):
 
     fmt = '  '.join(['%%%ds' % width for width in col_widths ])
     h = fmt % tuple(headers)
-    print('%s\n%s' % (h, '-' * len(h)), file = output)
+    print('%s\n%s' % (h, '-' * len(h)))
     for row in rows:
-          print(fmt % tuple(row), file = output)
+          print(fmt % tuple(row))
 
 
 ######## SNMP helper functions  ########
@@ -118,6 +118,18 @@ def snmp_get_next(host, *args):
         rows.append(row)
 
     return rows
+
+
+######## General switch information ########
+
+
+def switch_information(host):
+    oids = 'sysName sysLocation sysDescr sysUpTime'.split()
+    info = snmp_get(host, *[cmdgen.MibVariable('SNMPv2-MIB', x, 0) for x in oids])
+    print('Name        : %s' % info[0])
+    print('Location    : %s' % info[1])
+    print('Description : %s' % info[2])
+    print('Uptime      : %s\n' % str(datetime.timedelta(seconds = int(info[3]) / 100)))
 
 
 def get_interface_stats(host):
@@ -195,9 +207,11 @@ def parse_args():
     return parser.parse_args()
 
 def main(host):
+    stdout = sys.stdout
+    sys.stdout = output = io.StringIO()
+
     try:
-        oids = 'sysName sysLocation sysDescr sysUpTime'.split()
-        info = snmp_get(host, *[cmdgen.MibVariable('SNMPv2-MIB', x, 0) for x in oids])
+        switch_information(host)
 
         ports, counter = get_interface_stats(host)
 
@@ -210,26 +224,22 @@ def main(host):
         print('ERROR: ' + str(e))
         sys.exit(1)
 
-    print('Name        : %s' % info[0], file = output)
-    print('Location    : %s' % info[1], file = output)
-    print('Description : %s' % info[2], file = output)
-    print('Uptime      : %s\n' % str(datetime.timedelta(seconds = int(info[3]) / 100)), file = output)
 
     ports = [[x[0], x[1], si_num(x[2]), si_num(x[3], 2), si_num(x[4], 2), ' '.join(macs[i])] for i,x in enumerate(ports)]
 
     output_columns(ports, headers = ['-Name', '-Status', 'Speed', 'Octs In (%d)' % counter, 'Octs Out (%d)' % counter, '-Hosts'])
 
     KEY = 'Key : T - Tagged, U - Untagged, E - Excluded'
-    print('\nMax VLANs : %s    VLANs : %s    %s\n' % tuple(vlan_info + [KEY]), file = output)
+    print('\nMax VLANs : %s    VLANs : %s    %s\n' % tuple(vlan_info + [KEY]))
 
     vlan_ports = [vlan_entry(x, num_ports) for x in vlan_ports]
     output_columns(vlan_ports, headers = ['-ID', '-Name'] + [str(x) for x in range(1, 27)])
 
+    sys.stdout = stdout
     print(output.getvalue())
     output.close()
 
 args = parse_args()
-output = io.StringIO()
 
 try:
     socket.gethostbyname(args.host)
