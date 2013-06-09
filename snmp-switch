@@ -132,6 +132,9 @@ def switch_information(host):
     print('Uptime      : %s\n' % str(datetime.timedelta(seconds = int(info[3]) / 100)))
 
 
+######## Interface information ########
+
+
 def get_interface_stats(host):
     try:
         oids_64 = 'ifName ifOperStatus ifSpeed ifHCInOctets ifHCOutOctets'.split()
@@ -143,6 +146,7 @@ def get_interface_stats(host):
         counter = 32
 
     return (ports, counter)
+
 
 def get_macs(host):
     oids = 'dot1dTpFdbAddress dot1dTpFdbPort'.split()
@@ -159,6 +163,7 @@ def get_macs(host):
 
     return macs
 
+
 def load_mac_table():
     macs = dict()
     if isfile(args.config):
@@ -166,6 +171,19 @@ def load_mac_table():
             key, value = line.split()
             macs[key] = value
     return macs
+
+
+def switch_port_information(host):
+    ports, counter = get_interface_stats(host)
+    macs = get_macs(host)
+
+    ports = [[x[0], x[1], si_num(x[2]), si_num(x[3], 2), si_num(x[4], 2), ' '.join(macs[i])] for i,x in enumerate(ports)]
+
+    output_columns(ports, headers = ['-Name', '-Status', 'Speed', 'Octs In (%d)' % counter, 'Octs Out (%d)' % counter, '-Hosts'])
+
+
+######## VLAN information ########
+
 
 def vlan_entry(vlan_ports, num_ports):
     "convert [1 default 0xffffffc0 0xffffffc0] to 1 default n x U/T/E "
@@ -185,10 +203,12 @@ def vlan_entry(vlan_ports, num_ports):
 
     return [str(vlan_ports[0]), vlan_ports[1]] + p
 
+
 def get_vlan_info(host):
     oids = 'dot1qMaxSupportedVlans dot1qNumVlans'.split()
     info = snmp_get(host, *[cmdgen.MibVariable('Q-BRIDGE-MIB', x, 0) for x in oids])
     return info
+
 
 def get_vlan_ports(host):
     num_ports = len(snmp_get_next(host, cmdgen.MibVariable('Q-BRIDGE-MIB', 'dot1qPvid')))
@@ -196,6 +216,21 @@ def get_vlan_ports(host):
     oids = 'dot1qVlanFdbId  dot1qVlanStaticName dot1qVlanStaticEgressPorts dot1qVlanStaticUntaggedPorts'.split()
     ports = snmp_get_next(host, *[cmdgen.MibVariable('Q-BRIDGE-MIB', x) for x in oids])
     return (ports, num_ports)
+
+
+def switch_vlan_information(host):
+    vlan_info = get_vlan_info(host)
+    vlan_ports, num_ports = get_vlan_ports(host)
+    KEY = 'Key : T - Tagged, U - Untagged, E - Excluded'
+
+    print('\nMax VLANs : %s    VLANs : %s    %s\n' % tuple(vlan_info + [KEY]))
+
+    vlan_ports = [vlan_entry(x, num_ports) for x in vlan_ports]
+    output_columns(vlan_ports, headers = ['-ID', '-Name'] + [str(x) for x in range(1, 27)])
+
+
+######## Application ########
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description =
@@ -212,28 +247,12 @@ def main(host):
 
     try:
         switch_information(host)
-
-        ports, counter = get_interface_stats(host)
-
-        macs = get_macs(host)
-
-        vlan_info = get_vlan_info(host)
-        vlan_ports, num_ports = get_vlan_ports(host)
+        switch_port_information(host)
+        switch_vlan_information(host)
 
     except Exception as e:
         print('ERROR: ' + str(e))
         sys.exit(1)
-
-
-    ports = [[x[0], x[1], si_num(x[2]), si_num(x[3], 2), si_num(x[4], 2), ' '.join(macs[i])] for i,x in enumerate(ports)]
-
-    output_columns(ports, headers = ['-Name', '-Status', 'Speed', 'Octs In (%d)' % counter, 'Octs Out (%d)' % counter, '-Hosts'])
-
-    KEY = 'Key : T - Tagged, U - Untagged, E - Excluded'
-    print('\nMax VLANs : %s    VLANs : %s    %s\n' % tuple(vlan_info + [KEY]))
-
-    vlan_ports = [vlan_entry(x, num_ports) for x in vlan_ports]
-    output_columns(vlan_ports, headers = ['-ID', '-Name'] + [str(x) for x in range(1, 27)])
 
     sys.stdout = stdout
     print(output.getvalue())
