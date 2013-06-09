@@ -27,6 +27,45 @@ from pysnmp.entity.rfc3413.oneliner import cmdgen
 
 class SnmpError(Exception): pass
 
+######## General helper functions ########
+
+
+def si_num(x, dp = 0):
+    "Return x as a string using SI prefix and dp decimal places."
+    SI = ['', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y']
+    p = 0
+    while x >= 1000:
+        x /= 1000
+        p += 1
+
+    fmt_str = '%%.%df%%s' % dp
+    return fmt_str % (x, SI[p])
+
+
+def int_str(x):
+    "Return value as an int if possible, otherwise a string minus any quotes."
+    try:
+        return int(x)
+    except ValueError:
+        return x.strip('\'\"')
+
+
+def output_columns(rows, headers):
+    "Prefix header with a '-' for left alignment."
+    col_alignments = [-1 if x.startswith('-') else 1 for x in headers]
+    headers = [h.strip('-') for h in headers]
+
+    cols = zip(*([headers] + rows))
+    col_widths = [ max(len(value) for value in col) for col in cols ]
+    col_widths = [x[0] * x[1] for x in zip(col_widths, col_alignments)]
+
+    fmt = '  '.join(['%%%ds' % width for width in col_widths ])
+    h = fmt % tuple(headers)
+    print('%s\n%s' % (h, '-' * len(h)))
+    for row in rows:
+          print(fmt % tuple(row))
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description =
              'query a network switch using snmp.')
@@ -82,37 +121,6 @@ def snmp_get_next(host, *args):
 
     return rows
 
-def output_columns(rows, headers):
-    "Prefix header with a '-' for left alignment."
-    col_alignments = [-1 if x.startswith('-') else 1 for x in headers]
-    headers = [h.strip('-') for h in headers]
-
-    cols = zip(*([headers] + rows))
-    col_widths = [ max(len(value) for value in col) for col in cols ]
-    col_widths = [x[0] * x[1] for x in zip(col_widths, col_alignments)]
-
-    fmt = '  '.join(['%%%ds' % width for width in col_widths ])
-    h = fmt % tuple(headers)
-    print('%s\n%s' % (h, '-' * len(h)))
-    for row in rows:
-          print(fmt % tuple(row))
-
-def si_num(x, dp = 0):
-    SI = ['', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y']
-    p = 0
-    while x >= 1000:
-        x /= 1000
-        p += 1
-
-    fmt_str = '%%.%df%%s' % dp
-    return fmt_str % (x, SI[p])
-
-def int_str(x):
-    "return value as an int if possible, otherwise a string minus any quotes."
-    try:
-        return int(x)
-    except ValueError:
-        return x.strip('\'\"')
 
 def get_interface_stats(host):
     try:
