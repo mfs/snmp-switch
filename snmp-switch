@@ -120,12 +120,20 @@ def snmp_get_next(host, *args):
     return rows
 
 
+def mib_vars(mib, oids, indices = None):
+    "Return a list of MibVariables given a space separated list of names."
+    if indices is None:
+        return [cmdgen.MibVariable(mib, x)  for x in oids.split()]
+    else:
+        return [cmdgen.MibVariable(mib, x, indices)  for x in oids.split()]
+
+
 ######## General switch information ########
 
 
 def switch_information(host):
-    oids = 'sysName sysLocation sysDescr sysUpTime'.split()
-    info = snmp_get(host, *[cmdgen.MibVariable('SNMPv2-MIB', x, 0) for x in oids])
+    oids = mib_vars('SNMPv2-MIB', 'sysName sysLocation sysDescr sysUpTime', 0)
+    info = snmp_get(host, *oids)
     print('Name        : %s' % info[0])
     print('Location    : %s' % info[1])
     print('Description : %s' % info[2])
@@ -137,20 +145,20 @@ def switch_information(host):
 
 def get_interface_stats(host):
     try:
-        oids_64 = 'ifName ifOperStatus ifSpeed ifHCInOctets ifHCOutOctets'.split()
-        ports = snmp_get_next(host, *[cmdgen.MibVariable('IF-MIB', x) for x in oids_64])
+        oids_64 = mib_vars('IF-MIB', 'ifName ifOperStatus ifSpeed ifHCInOctets ifHCOutOctets')
+        ports = snmp_get_next(host, *oids_64)
         counter = 64
     except SmiError:
-        oids_32 = 'ifName ifOperStatus ifSpeed ifInOctets ifOutOctets'.split()
-        ports = snmp_get_next(host, *[cmdgen.MibVariable('IF-MIB', x) for x in oids_32])
+        oids_32 = mib_vars('IF-MIB', 'ifName ifOperStatus ifSpeed ifInOctets ifOutOctets')
+        ports = snmp_get_next(host, *oids_32)
         counter = 32
 
     return (ports, counter)
 
 
 def get_macs(host):
-    oids = 'dot1dTpFdbAddress dot1dTpFdbPort'.split()
-    mac_port = snmp_get_next(host, *[cmdgen.MibVariable('BRIDGE-MIB', x) for x in oids])
+    oids = mib_vars('BRIDGE-MIB', 'dot1dTpFdbAddress dot1dTpFdbPort')
+    mac_port = snmp_get_next(host, *oids)
 
     mac_table = load_mac_table()
     macs = defaultdict(list)
@@ -205,16 +213,16 @@ def vlan_entry(vlan_ports, num_ports):
 
 
 def get_vlan_info(host):
-    oids = 'dot1qMaxSupportedVlans dot1qNumVlans'.split()
-    info = snmp_get(host, *[cmdgen.MibVariable('Q-BRIDGE-MIB', x, 0) for x in oids])
+    oids = mib_vars('Q-BRIDGE-MIB', 'dot1qMaxSupportedVlans dot1qNumVlans', 0)
+    info = snmp_get(host, *oids)
     return info
 
 
 def get_vlan_ports(host):
     num_ports = len(snmp_get_next(host, cmdgen.MibVariable('Q-BRIDGE-MIB', 'dot1qPvid')))
 
-    oids = 'dot1qVlanFdbId  dot1qVlanStaticName dot1qVlanStaticEgressPorts dot1qVlanStaticUntaggedPorts'.split()
-    ports = snmp_get_next(host, *[cmdgen.MibVariable('Q-BRIDGE-MIB', x) for x in oids])
+    oids = mib_vars('Q-BRIDGE-MIB', 'dot1qVlanFdbId  dot1qVlanStaticName dot1qVlanStaticEgressPorts dot1qVlanStaticUntaggedPorts')
+    ports = snmp_get_next(host, *oids)
     return (ports, num_ports)
 
 
